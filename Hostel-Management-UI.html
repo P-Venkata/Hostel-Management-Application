@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hostel Management Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    nav a { margin: 10px; cursor: pointer; color: blue; text-decoration: underline; display: inline-block; }
+    section { display: none; margin-top: 20px; }
+    input, select, button { margin: 5px 0; display: block; }
+    pre, #result { white-space: pre-wrap; background: #f9f9f9; padding: 10px; border: 1px solid #ccc; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>Hostel Management Dashboard</h1>
+
+  <!-- Main Navigation -->
+  <nav>
+    <a onclick="showSection('roomsSection')">Rooms</a>
+    <a onclick="showSection('admissionSection')">Admission</a>
+    <a onclick="showSection('feesSection')">Fees</a>
+    <a onclick="showSection('quitSection')">Quit</a>
+    <a onclick="showSection('resetFeesSection')">Reset-Fees</a>
+  </nav>
+
+  <!-- Rooms Section -->
+  <section id="roomsSection">
+    <h2>Rooms</h2>
+    <button onclick="getAvailableSeats()">Available Seats</button>
+    <div>
+      <label>Search By Student ID:</label>
+      <input type="number" id="roomsStudentId" placeholder="Enter Student ID" />
+      <button onclick="searchById()">Search</button>
+    </div>
+    <div>
+      <label>Names By Room ID:</label>
+      <input type="number" id="roomsRoomId" placeholder="Enter Room ID" />
+      <button onclick="getNamesByRoomId()">Get Names</button>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <!-- Admission Section -->
+  <section id="admissionSection">
+    <h2>Admission</h2>
+    <form id="admissionForm">
+      <input name="name" placeholder="Name" required />
+      <input name="phoneNumber" placeholder="Phone Number" required />
+      <input name="email" type="email" placeholder="Email" required />
+      <input name="roomId" type="number" placeholder="Room ID" required />
+      <input name="rent" type="number" step="0.01" placeholder="Rent Amount (default: 6000)" />
+      <label><input type="checkbox" name="rentPayed" /> Rent Paid</label>
+      <button type="submit">Admit Student</button>
+    </form>
+    <p id="admissionResponse"></p>
+    <hr>
+    <form id="getByIdForm">
+      <h3>Get Student By ID</h3>
+      <input type="number" id="admissionStudentId" placeholder="Student ID" required />
+      <button type="submit">Fetch</button>
+    </form>
+    <pre id="detailsResponse"></pre>
+    <hr>
+    <form id="byRoomForm">
+      <h3>Students By Room</h3>
+      <input type="number" id="admissionRoomId" placeholder="Room ID" required />
+      <button type="submit">Fetch</button>
+    </form>
+    <pre id="roomResponse"></pre>
+  </section>
+
+  <!-- Fees Section -->
+  <section id="feesSection">
+    <h2>Pay Rent</h2>
+    <form id="feesForm">
+      <input type="number" id="feesStudentId" placeholder="Enter Student ID" required />
+      <button type="submit">Pay Fees</button>
+    </form>
+    <p id="paymentResponse"></p>
+  </section>
+
+  <!-- Quit Section -->
+  <section id="quitSection">
+    <h2>Remove Student</h2>
+    <form id="quitForm">
+      <input type="number" id="quitStudentId" placeholder="Enter Student ID" required />
+      <button type="submit">Quit</button>
+    </form>
+    <p id="quitResponse"></p>
+  </section>
+
+  <!-- Reset Fees Section -->
+  <section id="resetFeesSection">
+    <h2>Reset All Rents to Unpaid</h2>
+    <button onclick="resetAllRents()">Reset All</button>
+    <p id="resetResponse"></p>
+  </section>
+
+  <script>
+    function showSection(id) {
+      document.querySelectorAll("section").forEach(sec => sec.style.display = "none");
+      document.getElementById(id).style.display = "block";
+    }
+
+    // --- ROOMS ---
+    async function getAvailableSeats() {
+      try {
+        const res = await fetch("http://localhost:8080/rooms/availability");
+        const data = await res.json();
+        document.getElementById("result").innerText = JSON.stringify(data, null, 2);
+      } catch {
+        document.getElementById("result").innerText = "Error fetching availability.";
+      }
+    }
+
+    async function searchById() {
+      const id = document.getElementById("roomsStudentId").value;
+      if (!id) return alert("Enter Student ID");
+      try {
+        const res = await fetch(`http://localhost:8080/fetch/student-by-id?id=${id}`);
+        const data = await res.json();
+        document.getElementById("result").innerText = JSON.stringify(data, null, 2);
+      } catch {
+        document.getElementById("result").innerText = "Error fetching student.";
+      }
+    }
+
+    async function getNamesByRoomId() {
+      const roomId = document.getElementById("roomsRoomId").value;
+      if (!roomId) return alert("Enter Room ID");
+      try {
+        const res = await fetch(`http://localhost:8080/rooms/student-names?roomid=${roomId}`);
+        const data = await res.json();
+        document.getElementById("result").innerText = JSON.stringify(data, null, 2);
+      } catch {
+        document.getElementById("result").innerText = "Error fetching names.";
+      }
+    }
+
+    // --- ADMISSION ---
+    document.getElementById("admissionForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const student = {
+        name: form.name.value,
+        phoneNumber: form.phoneNumber.value,
+        email: form.email.value,
+        roomId: parseInt(form.roomId.value),
+        rent: form.rent.value ? parseFloat(form.rent.value) : 6000,
+        rentPayed: form.rentPayed.checked
+      };
+      try {
+        const res = await fetch("http://localhost:8081/admissions/new", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(student)
+        });
+        const data = await res.json();
+        document.getElementById("admissionResponse").innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("admissionResponse").innerText = "Error: " + err.message;
+      }
+    });
+
+    document.getElementById("getByIdForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("admissionStudentId").value;
+      const res = await fetch(`http://localhost:8081/admission/student-details?id=${id}`);
+      const text = await res.text();
+      document.getElementById("detailsResponse").innerText = text;
+    });
+
+    document.getElementById("byRoomForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const roomId = document.getElementById("admissionRoomId").value;
+      const res = await fetch(`http://localhost:8081/admission/students-by-room?roomid=${roomId}`);
+      const text = await res.text();
+      document.getElementById("roomResponse").innerText = text;
+    });
+
+    // --- FEES ---
+    document.getElementById("feesForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("feesStudentId").value;
+      const res = await fetch(`http://localhost:8083/fees/pay?id=${id}`, { method: "PUT" });
+      const text = await res.text();
+      document.getElementById("paymentResponse").innerText = text;
+    });
+
+    // --- QUIT ---
+    document.getElementById("quitForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("quitStudentId").value;
+      const res = await fetch(`http://localhost:8082/quit/remove-student?id=${id}`, { method: "DELETE" });
+      const text = await res.text();
+      document.getElementById("quitResponse").innerText = text;
+    });
+
+    // --- RESET FEES ---
+    async function resetAllRents() {
+      const res = await fetch("http://localhost:8084/fees/reset-all-rents", { method: "PUT" });
+      const text = await res.text();
+      document.getElementById("resetResponse").innerText = text;
+    }
+  </script>
+</body>
+</html>
